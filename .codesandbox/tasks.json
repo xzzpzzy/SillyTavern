@@ -16,28 +16,23 @@
     },
     "start-multi": {
       "name": "start-multi",
-      "command": "npm run start-multi",
-      "runAtStart": false
+      "command": "npm run start-multi"
     },
     "pkg": {
       "name": "pkg",
-      "command": "npm run pkg",
-      "runAtStart": false
+      "command": "npm run pkg"
     },
     "postinstall": {
       "name": "postinstall",
-      "command": "npm run postinstall",
-      "runAtStart": false
+      "command": "npm run postinstall"
     },
     "lint": {
       "name": "lint",
-      "command": "npm run lint",
-      "runAtStart": false
+      "command": "npm run lint"
     },
     "lint-fix": {
       "name": "lint-fix",
-      "command": "npm run lint-fix",
-      "runAtStart": false
+      "command": "npm run lint-fix"
     }
   }
 }
