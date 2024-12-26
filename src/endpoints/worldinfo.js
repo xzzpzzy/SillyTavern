@@ -1,21 +1,28 @@
-const fs = require('fs');
-const path = require('path');
-const express = require('express');
-const sanitize = require('sanitize-filename');
-const writeFileAtomicSync = require('write-file-atomic').sync;
+import fs from 'node:fs';
+import path from 'node:path';
 
-const { jsonParser, urlencodedParser } = require('../express-common');
-const { DIRECTORIES, UPLOADS_PATH } = require('../constants');
+import express from 'express';
+import sanitize from 'sanitize-filename';
+import { sync as writeFileAtomicSync } from 'write-file-atomic';
 
-function readWorldInfoFile(worldInfoName) {
-    const dummyObject = { entries: {} };
+import { jsonParser, urlencodedParser } from '../express-common.js';
+
+/**
+ * Reads a World Info file and returns its contents
+ * @param {import('../users.js').UserDirectoryList} directories User directories
+ * @param {string} worldInfoName Name of the World Info file
+ * @param {boolean} allowDummy If true, returns an empty object if the file doesn't exist
+ * @returns {object} World Info file contents
+ */
+export function readWorldInfoFile(directories, worldInfoName, allowDummy) {
+    const dummyObject = allowDummy ? { entries: {} } : null;
 
     if (!worldInfoName) {
         return dummyObject;
     }
 
     const filename = `${worldInfoName}.json`;
-    const pathToWorldInfo = path.join(DIRECTORIES.worlds, filename);
+    const pathToWorldInfo = path.join(directories.worlds, filename);
 
     if (!fs.existsSync(pathToWorldInfo)) {
         console.log(`World info file ${filename} doesn't exist.`);
@@ -27,14 +34,14 @@ function readWorldInfoFile(worldInfoName) {
     return worldInfo;
 }
 
-const router = express.Router();
+export const router = express.Router();
 
 router.post('/get', jsonParser, (request, response) => {
     if (!request.body?.name) {
         return response.sendStatus(400);
     }
 
-    const file = readWorldInfoFile(request.body.name);
+    const file = readWorldInfoFile(request.user.directories, request.body.name, true);
 
     return response.send(file);
 });
@@ -46,7 +53,7 @@ router.post('/delete', jsonParser, (request, response) => {
 
     const worldInfoName = request.body.name;
     const filename = sanitize(`${worldInfoName}.json`);
-    const pathToWorldInfo = path.join(DIRECTORIES.worlds, filename);
+    const pathToWorldInfo = path.join(request.user.directories.worlds, filename);
 
     if (!fs.existsSync(pathToWorldInfo)) {
         throw new Error(`World info file ${filename} doesn't exist.`);
@@ -67,7 +74,7 @@ router.post('/import', urlencodedParser, (request, response) => {
     if (request.body.convertedData) {
         fileContents = request.body.convertedData;
     } else {
-        const pathToUpload = path.join(UPLOADS_PATH, request.file.filename);
+        const pathToUpload = path.join(request.file.destination, request.file.filename);
         fileContents = fs.readFileSync(pathToUpload, 'utf8');
         fs.unlinkSync(pathToUpload);
     }
@@ -81,7 +88,7 @@ router.post('/import', urlencodedParser, (request, response) => {
         return response.status(400).send('Is not a valid world info file');
     }
 
-    const pathToNewFile = path.join(DIRECTORIES.worlds, filename);
+    const pathToNewFile = path.join(request.user.directories.worlds, filename);
     const worldName = path.parse(pathToNewFile).name;
 
     if (!worldName) {
@@ -110,11 +117,9 @@ router.post('/edit', jsonParser, (request, response) => {
     }
 
     const filename = `${sanitize(request.body.name)}.json`;
-    const pathToFile = path.join(DIRECTORIES.worlds, filename);
+    const pathToFile = path.join(request.user.directories.worlds, filename);
 
     writeFileAtomicSync(pathToFile, JSON.stringify(request.body.data, null, 4));
 
     return response.send({ ok: true });
 });
-
-module.exports = { router, readWorldInfoFile };

@@ -1,10 +1,12 @@
-const path = require('path');
-const fs = require('fs');
-const express = require('express');
-const { default: simpleGit } = require('simple-git');
-const sanitize = require('sanitize-filename');
-const { DIRECTORIES } = require('../constants');
-const { jsonParser } = require('../express-common');
+import path from 'node:path';
+import fs from 'node:fs';
+
+import express from 'express';
+import sanitize from 'sanitize-filename';
+import { default as simpleGit } from 'simple-git';
+
+import { PUBLIC_DIRECTORIES } from '../constants.js';
+import { jsonParser } from '../express-common.js';
 
 /**
  * This function extracts the extension information from the manifest file.
@@ -47,7 +49,7 @@ async function checkIfRepoIsUpToDate(extensionPath) {
     };
 }
 
-const router = express.Router();
+export const router = express.Router();
 
 /**
  * HTTP POST handler function to clone a git repository from a provided URL, read the extension manifest,
@@ -67,12 +69,12 @@ router.post('/install', jsonParser, async (request, response) => {
         const git = simpleGit();
 
         // make sure the third-party directory exists
-        if (!fs.existsSync(path.join(DIRECTORIES.extensions, 'third-party'))) {
-            fs.mkdirSync(path.join(DIRECTORIES.extensions, 'third-party'));
+        if (!fs.existsSync(path.join(request.user.directories.extensions))) {
+            fs.mkdirSync(path.join(request.user.directories.extensions));
         }
 
         const url = request.body.url;
-        const extensionPath = path.join(DIRECTORIES.extensions, 'third-party', path.basename(url, '.git'));
+        const extensionPath = path.join(request.user.directories.extensions, path.basename(url, '.git'));
 
         if (fs.existsSync(extensionPath)) {
             return response.status(409).send(`Directory already exists at ${extensionPath}`);
@@ -111,7 +113,7 @@ router.post('/update', jsonParser, async (request, response) => {
 
     try {
         const extensionName = request.body.extensionName;
-        const extensionPath = path.join(DIRECTORIES.extensions, 'third-party', extensionName);
+        const extensionPath = path.join(request.user.directories.extensions, extensionName);
 
         if (!fs.existsSync(extensionPath)) {
             return response.status(404).send(`Directory does not exist at ${extensionPath}`);
@@ -156,7 +158,7 @@ router.post('/version', jsonParser, async (request, response) => {
 
     try {
         const extensionName = request.body.extensionName;
-        const extensionPath = path.join(DIRECTORIES.extensions, 'third-party', extensionName);
+        const extensionPath = path.join(request.user.directories.extensions, extensionName);
 
         if (!fs.existsSync(extensionPath)) {
             return response.status(404).send(`Directory does not exist at ${extensionPath}`);
@@ -191,17 +193,17 @@ router.post('/delete', jsonParser, async (request, response) => {
         return response.status(400).send('Bad Request: extensionName is required in the request body.');
     }
 
-    // Sanatize the extension name to prevent directory traversal
+    // Sanitize the extension name to prevent directory traversal
     const extensionName = sanitize(request.body.extensionName);
 
     try {
-        const extensionPath = path.join(DIRECTORIES.extensions, 'third-party', extensionName);
+        const extensionPath = path.join(request.user.directories.extensions, extensionName);
 
         if (!fs.existsSync(extensionPath)) {
             return response.status(404).send(`Directory does not exist at ${extensionPath}`);
         }
 
-        await fs.promises.rmdir(extensionPath, { recursive: true });
+        await fs.promises.rm(extensionPath, { recursive: true });
         console.log(`Extension has been deleted at ${extensionPath}`);
 
         return response.send(`Extension has been deleted at ${extensionPath}`);
@@ -216,22 +218,22 @@ router.post('/delete', jsonParser, async (request, response) => {
  * Discover the extension folders
  * If the folder is called third-party, search for subfolders instead
  */
-router.get('/discover', jsonParser, function (_, response) {
+router.get('/discover', jsonParser, function (request, response) {
     // get all folders in the extensions folder, except third-party
     const extensions = fs
-        .readdirSync(DIRECTORIES.extensions)
-        .filter(f => fs.statSync(path.join(DIRECTORIES.extensions, f)).isDirectory())
+        .readdirSync(PUBLIC_DIRECTORIES.extensions)
+        .filter(f => fs.statSync(path.join(PUBLIC_DIRECTORIES.extensions, f)).isDirectory())
         .filter(f => f !== 'third-party');
 
     // get all folders in the third-party folder, if it exists
 
-    if (!fs.existsSync(path.join(DIRECTORIES.extensions, 'third-party'))) {
+    if (!fs.existsSync(path.join(request.user.directories.extensions))) {
         return response.send(extensions);
     }
 
     const thirdPartyExtensions = fs
-        .readdirSync(path.join(DIRECTORIES.extensions, 'third-party'))
-        .filter(f => fs.statSync(path.join(DIRECTORIES.extensions, 'third-party', f)).isDirectory());
+        .readdirSync(path.join(request.user.directories.extensions))
+        .filter(f => fs.statSync(path.join(request.user.directories.extensions, f)).isDirectory());
 
     // add the third-party extensions to the extensions array
     extensions.push(...thirdPartyExtensions.map(f => `third-party/${f}`));
@@ -240,5 +242,3 @@ router.get('/discover', jsonParser, function (_, response) {
 
     return response.send(extensions);
 });
-
-module.exports = { router };

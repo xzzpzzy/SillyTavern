@@ -5,8 +5,8 @@ TODO:
 */
 
 import { doExtrasFetch, extension_settings, getApiUrl, modules } from '../../extensions.js';
-import { callPopup } from '../../../script.js';
 import { initVoiceMap } from './index.js';
+import { POPUP_TYPE, callGenericPopup } from '../../popup.js';
 
 export { CoquiTtsProvider };
 
@@ -246,7 +246,7 @@ class CoquiTtsProvider {
         }
 
         // Ask user for voiceId name to save voice
-        const voiceName = await callPopup('<h3>Name of Coqui voice to add to voice select dropdown:</h3>', 'input');
+        const voiceName = await callGenericPopup('Name of Coqui voice to add to voice select dropdown:', POPUP_TYPE.INPUT);
 
         const model_origin = $('#coqui_model_origin').val();
         const model_language = $('#coqui_api_language').val();
@@ -310,12 +310,12 @@ class CoquiTtsProvider {
             modelDict = coquiApiModelsFull;
 
         if (model_setting_language == null & 'languages' in modelDict[model_language][model_dataset][model_label]) {
-            toastr.error('Model language not selected, please select one.', DEBUG_PREFIX+' voice mapping model language', { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
+            toastr.error('Model language not selected, please select one.', DEBUG_PREFIX + ' voice mapping model language', { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
             return;
         }
 
         if (model_setting_speaker == null & 'speakers' in modelDict[model_language][model_dataset][model_label]) {
-            toastr.error('Model speaker not selected, please select one.', DEBUG_PREFIX+' voice mapping model speaker', { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
+            toastr.error('Model speaker not selected, please select one.', DEBUG_PREFIX + ' voice mapping model speaker', { timeOut: 10000, extendedTimeOut: 20000, preventDuplicates: true });
             return;
         }
 
